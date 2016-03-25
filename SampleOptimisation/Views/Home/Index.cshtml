@@ -1,0 +1,201 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<script src="~/Scripts/memory-stats.js"></script>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3>Setup and teardown correctly</h3>
+        <p>
+            <input type="button" id="myButtonCreate" value="1 - Create DIVs" />
+            <input type="button" id="myButtonEvents" value="2 - Add events" />
+            <input type="button" id="myButtonRemoveOnlyDivs" value="3 - Remove DIVs" />
+            <input type="button" id="myButtonRemoveDivAndEvents" value="4 - Remove Div and events" />
+            <input type="button" id="myCount" value="Count!" />
+            <br />
+            <h3>Use Namespaces to isolate discrete code in similar events</h3>
+            <input type="button" id="myNameSpaceEvents" value="5 - Add namespace events" />
+            <input type="button" id="myNameSpaceEventsRemoveOne" value="6 - Remove single namespace event" />
+            <div id="divStack"></div>
+        </p>
+
+        <h3>Use Chrome Memory memStats Monitor</h3>
+        <input type="button" id="chromeStats" value="Show monitor" />
+        <input type="button" id="garbageGen" value="Generate garbage" />
+        <div id="divStack"></div>
+        </p>   </div>
+</div>
+
+
+@section scripts{
+
+    <script>
+
+        // add the monitor into our page and update it on a rAF loop
+        var stats = new MemoryStats();
+
+        $(document).ready(function () {
+
+            console.log('Objects in dom: ' + $("*").length);
+
+            var i = 0;
+
+
+
+            // create divs
+            $('#myButtonCreate').on('click', function (event) {
+                for (x = 1; x < 1000; x++) {
+                    i++;
+                    var html = "<div class='childObj' id='obj" + i + "'>Object ID " + i + "</div>";
+                    $("#divStack").prepend(html);
+                }
+            });
+
+            // hook events to the divs based on class
+            $('#myButtonEvents').click(
+                function () {
+                    // attach events to objects
+                    $('.childObj').click(function () {
+                        alert('here at: ' + $(this).attr('id'));
+                    });
+                }
+                );
+
+            // remove divs, not events
+            $('#myButtonRemoveOnlyDivs').click(
+                function () {
+                    $('.childObj').empty(); // removes from dom, does not remove children or events
+                }
+                );
+
+            // 'remove' removes an element from the dom, plus any children and associated events
+            $('#myButtonRemoveDivAndEvents').click(
+             function () {
+                 $('.childObj').remove();
+             }
+            		 );
+
+            // 'off' removes an event handler from an element
+            $('#myButtonRemoveEvents').click(
+                function () {
+                    $('.childObj').off('click');
+                }
+                );
+
+            // show count of objects
+            $('#myCount').click(
+                           function () {
+                               console.log($("*").length);
+                               $._data($("*"), "events");
+                               countEventHandlers();
+                           }
+                );
+
+            // namespace JS for 'X'
+            $('#myNameSpaceEvents').on('click.NameSpaceX',
+                    function () {
+                        alert('NS X');
+                    });
+            // namespace JS for 'Y'
+            $('#myNameSpaceEvents').on('click.NameSpaceY',
+                    function () {
+                        alert('NS Y');
+                    });
+            // using the namespace, remove one event
+            $('#myNameSpaceEventsRemoveOne').click(
+                function () {
+                    $('#myNameSpaceEvents').off('click.NameSpaceX'); // Y killed, X remains
+                });
+
+
+            $('#chromeStats').click(
+                function(){
+                    callStats();
+                });
+
+            $('#garbageGen').click(
+                function(){
+                    generateGarbage();
+                });
+
+        });
+
+
+        function callStats(){
+            stats.domElement.style.position = 'fixed';
+            stats.domElement.style.right = '0px';
+            stats.domElement.style.bottom = '0px';
+            document.body.appendChild(stats.domElement);
+            requestAnimationFrame(function rAFloop() {
+                stats.update();
+                requestAnimationFrame(rAFloop);
+            }
+        )}
+
+        function generateGarbage(){
+            // generate plenty of objects
+            // from in generational GC demo from firefox
+            // https://people.mozilla.org/~wmccloskey/incremental-blog/example-pause.html
+            var garbage 	= [];
+            var garbageSize	= 1024 * 1024 * 6;
+            var garbageIdx	= 0;
+            // call GC() from console to test a GC
+            function GC(){
+                garbage 	= [];
+                garbageIdx	= 0;
+            }
+
+            function makeGarbage(amount){
+                for(var i = 0; i < amount; i++){
+                    garbage[garbageIdx]	= {};
+                    garbageIdx	= (garbageIdx+1) % garbageSize;
+                }
+            }
+
+            requestAnimationFrame(function rAFloop(){
+                makeGarbage(1024);
+                requestAnimationFrame(rAFloop);
+            });
+        }
+
+        // count the number of 'click' event handlers in the dom tree.
+        // source: http://www.nonobtrusive.com/2009/07/23/count-the-number-of-javascript-eventhandlers-in-the-dom-tree/
+        function countEventHandlers() {
+            var elements = document.getElementsByTagName("*"), len = elements.length,
+                 counter = 0,
+                 countermap = [],
+                 /* fill up with more events if needed or just use those you want to look for */
+                 events = ['click'],
+                 eventlen = events.length;
+
+            for (var i = eventlen - 1; i >= 0; --i) {
+                countermap[events[i]] = 0;   //reset the map
+            }
+
+
+            while (len--) {  //go through all DOM-nodes
+                var element = elements[len],
+                    tmp = eventlen;
+                while (tmp--) {  //go through all events defined above for each node and see if it exists.
+                    if (element[events[tmp]]) {
+                        counter++;
+                        countermap[events[tmp]]++;
+                    }
+                }
+            }
+
+            var someStats = counter + " events found in total\n\n";
+            for (var o in countermap) {
+                someStats += o + " was found " + countermap[o] + " times\n";
+            }
+            alert(someStats);
+
+        }
+
+
+
+    </script>
+
+
+}
